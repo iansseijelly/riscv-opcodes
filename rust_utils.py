@@ -26,10 +26,10 @@ use once_cell::sync::Lazy;
 use crate::insn::*;
 
 pub struct Spec {{
-  name: String,
-  mask_bits: u32,
-  match_bits: u32,
-  args: Vec<fn(u32)->Arg>,
+  pub name: String,
+  pub mask_bits: u32,
+  pub match_bits: u32,
+  pub args: Vec<fn(u32)->Arg>,
 }}
 
 impl Spec {{    

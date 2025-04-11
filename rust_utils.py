@@ -10,11 +10,10 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s:: %(message)s")
 def make_rust(instr_dict: InstrDict):
     mask_match_str = ""
     for i in instr_dict:
-        is_fp = re.match(r"rv*_f", instr_dict[i]["extension"][0]) is not None
         name = i.replace("_", ".")
         variables : list[str] = []
         for v in instr_dict[i]["variable_fields"]:
-            variables.extend(canonicalize_arg(v, is_fp))
+            variables.extend(canonicalize_arg(v))
         mask_match_str += f'    Spec::new("{name}", {instr_dict[i]["mask"]}, {instr_dict[i]["match"]}, vec![{", ".join(variables)}]),\n'
     with open("isa.rs", "w", encoding="utf-8") as rust_file:
         rust_file.write(
@@ -59,23 +58,11 @@ pub static RV_ISA_SPECS: Lazy<Vec<Spec>> = Lazy::new(|| vec![
         )
 
 # helper function to split shared arguments
-def canonicalize_arg(v: str, is_fp: bool) -> list[str]:
+def canonicalize_arg(v: str) -> list[str]:
     if v == "rd_rs1_p":
         return ["rd_p", "rs1_p"]
     elif v == "rd_rs1_n0":
         return ["rd_n0", "rs1_n0"]
     else:
-        if is_fp:
-            if v == "rs1":
-                return ["rs1_f"]
-            elif v == "rs2":
-                return ["rs2_f"]
-            elif v == "rs3":
-                return ["rs3_f"]
-            elif v == "rd":
-                return ["rd_f"]
-            else:
-                return [v]
-        else:
-            return [v]
+        return [v]
 

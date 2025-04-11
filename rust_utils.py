@@ -1,6 +1,5 @@
 import logging
 import pprint
-import re
 from constants import causes, csrs, csrs32
 from shared_utils import InstrDict
 

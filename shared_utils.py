@@ -155,12 +155,24 @@ def convert_encoding_to_match_mask(encoding: "list[str]") -> "tuple[str, str]":
     return hex(int(match, 2)), hex(int(mask, 2))
 
 
+def convert_encoding_to_len(encoding: "list[str]") -> int:
+    """Query the bottom 2 bits and return the length of the instruction"""
+    return 32 if int("".join(encoding)[32-2:32-0], 2) == 3 else 16
+
+
+def convert_encoding_to_opcode(encoding: "list[str]") -> int:
+    """Query the opcode field and return the opcode value"""
+    return int("".join(encoding[32-7:32-0]), 2)
+
+
 class SingleInstr(TypedDict):
     encoding: str
     variable_fields: "list[str]"
     extension: "list[str]"
     match: str
     mask: str
+    length: int
+    opcode: int
 
 
 InstrDict = Dict[str, SingleInstr]
@@ -206,6 +218,10 @@ def process_enc_line(line: str, ext: str) -> "tuple[str, SingleInstr]":
     # Convert the list of encodings into a match and mask
     match, mask = convert_encoding_to_match_mask(encoding)
 
+    length = convert_encoding_to_len(encoding)
+
+    opcode = 0 if length == 16 else convert_encoding_to_opcode(encoding)
+
     # Check arguments in arg_lut
     args = single_fixed.sub(" ", remaining).split()
     encoding_args = encoding.copy()
@@ -219,6 +235,8 @@ def process_enc_line(line: str, ext: str) -> "tuple[str, SingleInstr]":
         "extension": [os.path.basename(ext)],
         "match": match,
         "mask": mask,
+        "length": length,
+        "opcode": opcode,
     }
 
 

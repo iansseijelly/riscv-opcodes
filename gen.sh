@@ -8,7 +8,7 @@ RUST_SRC_DIR="$ROOT_DIR/src"
 OPCODES_DIR="$ROOT_DIR/riscv-opcodes"
 
 # generate the riscv-opcodes
-make inst.rs EXTENSIONS='rv*_i rv*_m rv*_a rv*_c rv*_zicsr rv*_f rv_system rv*_d rv*_v'
+make inst.rs EXTENSIONS='rv*_i rv*_m rv*_a rv*_c rv*_zicsr rv*_f rv_system rv*_d rv*_v rv_s'
 
 # copy the riscv-opcodes to the rust src directory
 echo "Copying riscv-opcodes to $RUST_SRC_DIR"

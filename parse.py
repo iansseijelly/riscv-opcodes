@@ -10,7 +10,7 @@ from chisel_utils import make_chisel
 from constants import emitted_pseudo_ops
 from go_utils import make_go
 from latex_utils import make_latex_table, make_priv_latex_table
-from rust_utils import make_rust
+from rust_utils import make_rust, rust_pseudo_ops
 from shared_utils import add_segmented_vls_insn, create_inst_dict
 from sverilog_utils import make_sverilog
 
@@ -59,7 +59,10 @@ def generate_extensions(
         logging.info("inst.sverilog generated successfully")
 
     if rust:
-        make_rust(instr_dict)
+        instr_dict_rust = create_inst_dict(extensions, False, include_pseudo_ops=rust_pseudo_ops)
+        # Vector loads and stores with nf = 0, and their segment forms for every other nf.
+        instr_dict_rust = add_segmented_vls_insn(instr_dict_rust)
+        make_rust(dict(sorted(instr_dict_rust.items())))
         logging.info("inst.rs generated successfully")
 
     if go:

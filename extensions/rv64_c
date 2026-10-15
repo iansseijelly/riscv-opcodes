@@ -10,6 +10,6 @@ c.subw rd_rs1_p rs2_p                     1..0=1 15..13=4 12..10=0b111 6..5=0
 c.addw rd_rs1_p rs2_p                     1..0=1 15..13=4 12..10=0b111 6..5=1
 
 #quadrant 2
-c.slli rd_rs1_n0 c_nzuimm6hi c_nzuimm6lo  1..0=2 15..13=0
+c.slli rd_rs1 c_nzuimm6hi c_nzuimm6lo  1..0=2 15..13=0
 c.ldsp rd_n0 c_uimm9sphi c_uimm9splo      1..0=2 15..13=3
 c.sdsp c_rs2 c_uimm9sp_s                  1..0=2 15..13=7

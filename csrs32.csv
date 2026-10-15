@@ -49,6 +49,7 @@
 0xC9E, "hpmcounter30h"
 0xC9F, "hpmcounter31h"
 0x310, "mstatush"
+0x312, "medelegh"
 0x313, "midelegh"
 0x314, "mieh"
 0x318, "mvienh"

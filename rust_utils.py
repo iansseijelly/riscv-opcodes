@@ -29,14 +29,14 @@ def make_rust(instr_dict: InstrDict):
     full_64_instrs_by_opcode = {}
 
     for i in sorted(instr_dict, key=lambda name: name not in rust_pseudo_ops):
-        name = i.removesuffix("_rv32").replace("_", ".")
+        name = rust_mnemonic(i)
         variables: list[str] = []
         for v in instr_dict[i]["variable_fields"]:
             variables.extend(canonicalize_arg(v))
 
         # Create the instruction spec string
         instr_spec = (
-            f'    Spec::new("{name}", {instr_dict[i]["mask"]}, '
+            f'    Spec::new(Op::{rust_variant(name)}, {instr_dict[i]["mask"]}, '
             f'{instr_dict[i]["match"]}, vec![{", ".join(variables)}]),\n'
         )
 
@@ -147,9 +147,10 @@ pub fn get_64_full_specs_by_opcode(opcode: u8) -> Option<&'static Lazy<Vec<Spec>
 use crate::args::*;
 use once_cell::sync::Lazy;
 
+{make_op_enum(instr_dict)}
 #[derive(Debug, Clone)]
 pub struct Spec {{
-    pub name: &'static str,
+    pub op: Op,
     pub mask_bits: u32,
     pub match_bits: u32,
     pub args: Vec<fn(u32) -> (Arg, Tag)>,
@@ -157,17 +158,22 @@ pub struct Spec {{
 
 impl Spec {{
     pub fn new(
-        name: &'static str,
+        op: Op,
         mask_bits: u32,
         match_bits: u32,
         args: Vec<fn(u32) -> (Arg, Tag)>,
     ) -> Self {{
         Self {{
-            name,
+            op,
             mask_bits,
             match_bits,
             args,
         }}
+    }}
+
+    /// The instruction's mnemonic.
+    pub fn name(&self) -> &'static str {{
+        self.op.name()
     }}
 
     pub fn compare(&self, code: u32) -> bool {{
@@ -215,6 +221,90 @@ pub static RV_ISA_SPECS_64_COMPRESSED: Lazy<Vec<Spec>> = Lazy::new(|| vec![
 {const_str}
 """
         )
+
+def rust_mnemonic(key: str) -> str:
+    """An instruction's mnemonic from its riscv-opcodes name: c_addi is c.addi, and slli_rv32 is slli."""
+    return key.removesuffix("_rv32").replace("_", ".")
+
+
+def rust_variant(name: str, sep: str = ".") -> str:
+    """A Rust variant name: the mnemonic c.addi is CAddi, and the extension rv64_i (with sep "_") is Rv64I."""
+    return "".join(part[:1].upper() + part[1:] for part in name.split(sep))
+
+
+def make_op_enum(instr_dict: InstrDict) -> str:
+    # One Op per mnemonic. A mnemonic with both an instruction and an RV32 pseudo-op (slli and slli_rv32) is one Op,
+    # which belongs to the instruction's extension: instructions come first, and the first extension seen is kept.
+    exts: dict[str, str] = {}
+    for key in sorted(instr_dict, key=lambda k: k in rust_pseudo_ops):
+        exts.setdefault(rust_mnemonic(key), instr_dict[key]["extension"][0])
+    names = sorted(exts)
+    ext_names = sorted(set(exts.values()))
+
+    variants = [rust_variant(n) for n in names]
+    ext_variants = [rust_variant(e, "_") for e in ext_names]
+    for kind, vs in (("Op", variants), ("Ext", ext_variants)):
+        if len(set(vs)) != len(vs):
+            raise ValueError(f"two {kind} variants have the same Rust name")
+
+    op_variants = "".join(f"    {v},\n" for v in variants)
+    op_all = "".join(f"        Op::{v},\n" for v in variants)
+    op_names = "".join(f'            Op::{v} => "{n}",\n' for v, n in zip(variants, names))
+    op_exts = "".join(f"            Op::{v} => Some(Ext::{rust_variant(exts[n], '_')}),\n" for v, n in zip(variants, names))
+    if "Unknown" in variants:
+        raise ValueError("an instruction's Op variant is Unknown, which stands for an undecodable encoding")
+    ext_variant_list = "".join(f"    {v},\n" for v in ext_variants)
+    ext_all = "".join(f"        Ext::{v},\n" for v in ext_variants)
+    ext_name_list = "".join(f'            Ext::{v} => "{n}",\n' for v, n in zip(ext_variants, ext_names))
+
+    return f"""/// An instruction: one per mnemonic, in mnemonic order, and `Unknown` for an encoding that decodes to none.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[repr(u16)]
+pub enum Op {{
+{op_variants}    /// Not an instruction: an encoding that decodes to none, which a disassembly walk passes over.
+    Unknown,
+}}
+
+impl Op {{
+    /// Every instruction, in mnemonic order. `Unknown` is not one.
+    pub const ALL: &'static [Op] = &[
+{op_all}    ];
+
+    /// The instruction's mnemonic, as riscv-opcodes names it: `add`, `c.addi`, `fence.i`; `unknown` for `Unknown`.
+    pub const fn name(self) -> &'static str {{
+        match self {{
+{op_names}            Op::Unknown => "unknown",
+        }}
+    }}
+
+    /// The riscv-opcodes extension that defines the instruction, or `None` for `Unknown`. A mnemonic that also has
+    /// an RV32 pseudo-op encoding, such as `slli`, belongs to its instruction's extension (`rv64_i`).
+    pub const fn ext(self) -> Option<Ext> {{
+        match self {{
+{op_exts}            Op::Unknown => None,
+        }}
+    }}
+}}
+
+/// A riscv-opcodes extension: the file that defines an instruction, such as `rv_i`, `rv64_i`, or `rv_m`. The RV64
+/// additions to an extension are their own, so RV64I is `rv_i` and `rv64_i` together.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum Ext {{
+{ext_variant_list}}}
+
+impl Ext {{
+    /// Every extension that defines an instruction, in name order.
+    pub const ALL: &'static [Ext] = &[
+{ext_all}    ];
+
+    /// The extension's riscv-opcodes name, such as `rv64_i`.
+    pub const fn name(self) -> &'static str {{
+        match self {{
+{ext_name_list}        }}
+    }}
+}}
+"""
+
 
 # helper function to split shared arguments
 def canonicalize_arg(v: str) -> list[str]:

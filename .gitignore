@@ -7,6 +7,7 @@ instr-table.tex
 priv-instr-table.tex
 inst.rs
 isa.rs
+isa/
 isa_consts.rs
 inst.spinalhdl
 inst.sverilog

@@ -12,7 +12,9 @@ make inst.rs EXTENSIONS='rv*_i rv*_m rv*_a rv*_c rv*_zicsr rv_zifencei rv*_f rv_
 
 # copy the riscv-opcodes to the rust src directory
 echo "Copying riscv-opcodes to $RUST_SRC_DIR"
-cp $OPCODES_DIR/isa.rs $RUST_SRC_DIR/isa.rs
+rm -rf $RUST_SRC_DIR/isa.rs $RUST_SRC_DIR/isa
+mkdir -p $RUST_SRC_DIR/isa
+cp $OPCODES_DIR/isa/*.rs $RUST_SRC_DIR/isa/
 cp $OPCODES_DIR/isa_consts.rs $RUST_SRC_DIR/isa_consts.rs
 
 echo "Done"
